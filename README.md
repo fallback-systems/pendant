@@ -2,12 +2,6 @@
 
 First version.. 
 
-An Elixir nerves repo that can be flashed on any compatible device.
-
-Can be tweaked and extended.
-
-The device is basically an [nerves device](https://nerves-project.org/) 
-
 # the idea
 
 We each buy or build our own "pendant" which is a small computer wrapped in a protective case.
