@@ -1,0 +1,127 @@
+<div class="mb-8">
+  <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+    <p class="font-bold">Emergency Messaging System</p>
+    <p>This interface allows you to send messages to other Meshtastic devices in range.</p>
+  </div>
+  
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Status Panel -->
+    <div class="bg-white rounded-lg shadow-md p-4">
+      <h2 class="text-xl font-semibold mb-4">Meshtastic Status</h2>
+      
+      <div class="mb-4">
+        <div class="flex items-center">
+          <div class={if @status.connected, do: "w-3 h-3 bg-green-500 rounded-full mr-2", else: "w-3 h-3 bg-red-500 rounded-full mr-2"}></div>
+          <span class="font-medium"><%= if @status.connected, do: "Connected", else: "Disconnected" %></span>
+        </div>
+        
+        <%= if @status.device do %>
+          <div class="mt-2 text-sm text-gray-600">
+            Device: <%= @status.device %>
+          </div>
+        <% end %>
+      </div>
+      
+      <div class="mb-4">
+        <h3 class="font-medium mb-2">Peers (<%= length(@status.peers) %>)</h3>
+        
+        <%= if Enum.empty?(@status.peers) do %>
+          <p class="text-sm text-gray-500 italic">No peers detected</p>
+        <% else %>
+          <div class="space-y-2 max-h-40 overflow-y-auto text-sm">
+            <%= for peer <- @status.peers do %>
+              <div class="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100">
+                <span class="truncate"><%= peer %></span>
+                <button 
+                  class={if @selected_peer == peer, do: "px-2 py-1 text-xs bg-blue-500 text-white rounded", else: "px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"}
+                  phx-click="select_peer" 
+                  phx-value-peer={peer}>
+                  <%= if @selected_peer == peer, do: "Selected", else: "Select" %>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+      
+      <%= if @selected_peer do %>
+        <div class="p-2 bg-blue-50 rounded-md">
+          <p class="text-sm">Sending to: <span class="font-bold"><%= @selected_peer %></span></p>
+          <button 
+            class="mt-2 text-xs text-blue-600 hover:text-blue-800"
+            phx-click="select_peer"
+            phx-value-peer="">
+            Clear selection
+          </button>
+        </div>
+      <% else %>
+        <div class="p-2 bg-yellow-50 rounded-md">
+          <p class="text-sm">Broadcasting to all peers</p>
+        </div>
+      <% end %>
+    </div>
+    
+    <!-- Messages Panel -->
+    <div class="md:col-span-2">
+      <div class="bg-white rounded-lg shadow-md h-full flex flex-col">
+        <div class="p-4 border-b">
+          <h2 class="text-xl font-semibold">Messages</h2>
+        </div>
+        
+        <!-- Message History -->
+        <div class="flex-1 p-4 overflow-y-auto max-h-96 space-y-3">
+          <%= if Enum.empty?(@messages) do %>
+            <div class="flex items-center justify-center h-32 text-gray-500 italic">
+              No messages yet
+            </div>
+          <% else %>
+            <%= for message <- @messages do %>
+              <div class={if message.type == :outgoing, do: "flex justify-end", else: "flex justify-start"}>
+                <div class={if message.type == :outgoing, do: "max-w-3/4 bg-blue-100 rounded-lg p-3", else: "max-w-3/4 bg-gray-100 rounded-lg p-3"}>
+                  <div class="text-xs text-gray-500 mb-1">
+                    <%= if message.type == :outgoing do %>
+                      <span class="font-semibold text-blue-600"><%= message.from %></span>
+                    <% else %>
+                      <span class="font-semibold text-gray-700">From: <%= message.from %></span>
+                    <% end %>
+                    <span class="ml-2"><%= format_timestamp(message.timestamp) %></span>
+                  </div>
+                  <div class="break-words">
+                    <%= message.payload %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+        
+        <!-- Message Input -->
+        <div class="p-4 border-t">
+          <form phx-submit="send_message" class="flex items-end">
+            <div class="flex-1 mr-2">
+              <textarea 
+                name="message"
+                placeholder="Type your message here..."
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                rows="2"
+                value={@new_message}
+                phx-keyup="typing"
+                phx-debounce="300"></textarea>
+            </div>
+            <button 
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              Send
+            </button>
+          </form>
+          
+          <%= if @error do %>
+            <div class="mt-2 text-red-600 text-sm">
+              <%= @error %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

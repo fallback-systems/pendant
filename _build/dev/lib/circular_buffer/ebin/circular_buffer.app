@@ -1,0 +1,11 @@
+{application,circular_buffer,
+             [{config_mtime,1746179091},
+              {optional_applications,[]},
+              {applications,[kernel,stdlib,elixir]},
+              {description,"General purpose circular buffer.\n"},
+              {modules,['Elixir.CircularBuffer',
+                        'Elixir.Collectable.CircularBuffer',
+                        'Elixir.Enumerable.CircularBuffer',
+                        'Elixir.Inspect.CircularBuffer']},
+              {registered,[]},
+              {vsn,"0.4.1"}]}.

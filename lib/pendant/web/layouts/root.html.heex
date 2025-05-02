@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <title>Pendant Emergency Knowledge Base</title>
+    <link rel="stylesheet" href={~p"/assets/app.css"} />
+    <script defer src={~p"/assets/app.js"}></script>
+  </head>
+  <body class="bg-gray-100">
+    <header class="bg-red-600 text-white">
+      <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <a href="/" class="text-2xl font-bold flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Pendant
+        </a>
+        <nav class="flex space-x-4">
+          <a href="/" class="hover:underline">Home</a>
+          <a href="/categories" class="hover:underline">Categories</a>
+          <a href="/search" class="hover:underline">Search</a>
+          <a href="/system" class="hover:underline">System</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container mx-auto px-4 py-8">
+        <%= @inner_content %>
+      </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-6">
+      <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div>
+            <h3 class="text-lg font-semibold mb-2">Emergency Use Only</h3>
+            <p class="text-gray-300">This device is intended for emergency situations when normal communication networks are unavailable.</p>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold mb-2">Battery Status</h3>
+            <p class="text-gray-300">Current level: <span id="battery-level">N/A</span></p>
+            <p class="text-gray-300">Estimated time remaining: <span id="battery-time">N/A</span></p>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold mb-2">Network</h3>
+            <p class="text-gray-300">WiFi AP: <span id="wifi-status">Active</span></p>
+            <p class="text-gray-300">Meshtastic: <span id="meshtastic-status">Connected</span></p>
+            <p class="text-gray-300">Nearby devices: <span id="nearby-devices">Scanning...</span></p>
+          </div>
+        </div>
+        <div class="mt-8 pt-4 border-t border-gray-700 text-center text-gray-400">
+          <p>Pendant Emergency Communication Device</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

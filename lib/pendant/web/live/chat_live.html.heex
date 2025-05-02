@@ -1,0 +1,593 @@
+<div class="flex h-screen overflow-hidden bg-gray-100">
+  <!-- Sidebar -->
+  <div class="w-64 flex-shrink-0 bg-gray-800 text-white p-4 flex flex-col">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold">Pendant Chat</h2>
+      <p class="text-sm text-gray-400">Connected as: <%= @user.display_name || @user.username %></p>
+    </div>
+    
+    <div class="mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-medium">Your Rooms</h3>
+        <button class="text-xs bg-gray-700 hover:bg-gray-600 text-white py-1 px-2 rounded" 
+                phx-click="show-modal" phx-value-modal="create-room">
+          + New
+        </button>
+      </div>
+      <div class="overflow-y-auto max-h-40">
+        <%= if Enum.empty?(@user_rooms) do %>
+          <p class="text-sm text-gray-400 italic">No rooms yet</p>
+        <% else %>
+          <ul class="space-y-1">
+            <%= for room <- @user_rooms do %>
+              <li>
+                <button phx-click="join_room" phx-value-id={room.id}
+                        class={"w-full text-left px-2 py-1 rounded text-sm #{if @current_room && @current_room.id == room.id, do: "bg-blue-600", else: "hover:bg-gray-700"}"}>
+                  <%= room.name %>
+                  <%= if room.crdt_enabled do %>
+                    <span class="ml-1 text-xs bg-purple-700 px-1 rounded">CRDT</span>
+                  <% end %>
+                </button>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-medium">Public Rooms</h3>
+        <button class="text-xs bg-purple-700 hover:bg-purple-600 text-white py-1 px-2 rounded" 
+                phx-click="show-modal" phx-value-modal="create-crdt-room">
+          + CRDT
+        </button>
+      </div>
+      <div class="overflow-y-auto max-h-40">
+        <%= if Enum.empty?(@public_rooms) do %>
+          <p class="text-sm text-gray-400 italic">No public rooms</p>
+        <% else %>
+          <ul class="space-y-1">
+            <%= for room <- @public_rooms do %>
+              <li>
+                <button phx-click="join_room" phx-value-id={room.id}
+                        class={"w-full text-left px-2 py-1 rounded text-sm #{if @current_room && @current_room.id == room.id, do: "bg-blue-600", else: "hover:bg-gray-700"}"}>
+                  <%= room.name %>
+                  <%= if room.crdt_enabled do %>
+                    <span class="ml-1 text-xs bg-purple-700 px-1 rounded">CRDT</span>
+                  <% end %>
+                </button>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="mt-auto">
+      <h3 class="font-medium mb-2">Emergency Features</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <a href="/meshtastic" class="text-center bg-red-700 hover:bg-red-600 text-white py-2 px-3 rounded text-sm">
+          Meshtastic
+        </a>
+        <a href="/" class="text-center bg-gray-700 hover:bg-gray-600 text-white py-2 px-3 rounded text-sm">
+          Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main content -->
+  <div class="flex-1 flex flex-col">
+    <%= if @current_room do %>
+      <!-- Room header -->
+      <div class="bg-white border-b p-4 flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-semibold"><%= @current_room.name %></h2>
+          <p class="text-sm text-gray-500"><%= @current_room.description %></p>
+        </div>
+        <div class="flex items-center">
+          <%= if @crdt_enabled do %>
+            <button class={"mr-3 px-3 py-1 rounded text-sm #{if @collaborative_editing, do: "bg-purple-600 text-white", else: "bg-gray-200 hover:bg-gray-300"}"} 
+                    phx-click="toggle_collaborative_editing">
+              <%= if @collaborative_editing, do: "Exit Collaborative Mode", else: "Collaborative Edit" %>
+            </button>
+          <% end %>
+          <span class="text-sm text-gray-600"><%= length(@room_users) %> users</span>
+        </div>
+      </div>
+      
+      <%= if @collaborative_editing do %>
+        <!-- Collaborative editing area -->
+        <div class="flex-1 p-4 bg-gray-50 overflow-auto">
+          <div class="bg-white p-4 rounded shadow">
+            <h3 class="font-medium mb-2">Collaborative <%= String.upcase(@crdt_data.type) %> Editor</h3>
+            <div class="mb-2">
+              <p class="text-gray-600 mb-2">Using delta_crdt library for efficient conflict-free collaboration.</p>
+              
+              <%= if @current_room.crdt_type == "text" || @current_room.crdt_type == "document" do %>
+                <div class="mb-4">
+                  <h4 class="font-medium mb-1">Collaborative Document</h4>
+                  <textarea id="collaborative-text" 
+                            class="w-full p-2 border rounded"
+                            rows="10"
+                            phx-hook="CollaborativeText"
+                            data-room-id={@current_room.id}>
+                    <%= Map.get(@crdt_data, "document", "") %>
+                  </textarea>
+                  <button class="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+                          phx-click="crdt_update"
+                          phx-value-operation={Jason.encode!(%{
+                            type: "set", 
+                            key: "document",
+                            value: ""
+                          })}>
+                    Clear Document
+                  </button>
+                </div>
+              <% end %>
+              
+              <div class="flex items-center space-x-4 mb-4">
+                <h4 class="font-medium mr-2">Counter:</h4>
+                <button class="px-4 py-2 bg-red-500 text-white rounded"
+                        phx-click="crdt_update"
+                        phx-value-operation={Jason.encode!(%{
+                          type: "decrement",
+                          key: "counter"
+                        })}>
+                  -
+                </button>
+                <span class="text-xl font-bold"><%= Map.get(@crdt_data, "counter", 0) %></span>
+                <button class="px-4 py-2 bg-green-500 text-white rounded"
+                        phx-click="crdt_update"
+                        phx-value-operation={Jason.encode!(%{
+                          type: "increment",
+                          key: "counter"
+                        })}>
+                  +
+                </button>
+              </div>
+              
+              <div class="mb-4">
+                <h4 class="font-medium mb-1">Shared Items List</h4>
+                <div class="flex">
+                  <input type="text" id="set-item" placeholder="Add item..." 
+                         class="flex-1 p-2 border rounded-l" />
+                  <button class="px-4 py-2 bg-blue-500 text-white rounded-r"
+                          phx-click="add_set_item">
+                    Add
+                  </button>
+                </div>
+                <ul class="mt-2 border rounded p-2 max-h-40 overflow-y-auto">
+                  <% items = Map.get(@crdt_data, "items", []) %>
+                  <%= if is_list(items) && length(items) > 0 do %>
+                    <%= for item <- items do %>
+                      <li class="flex justify-between py-1 border-b last:border-0">
+                        <span><%= item %></span>
+                        <button class="text-xs text-red-500 hover:text-red-700"
+                                phx-click="crdt_update"
+                                phx-value-operation={Jason.encode!(%{
+                                  type: "remove",
+                                  key: "items",
+                                  value: item
+                                })}>
+                          Remove
+                        </button>
+                      </li>
+                    <% end %>
+                  <% else %>
+                    <li class="py-1 text-gray-500 italic">No items added yet</li>
+                  <% end %>
+                </ul>
+              </div>
+              
+              <div class="mb-4">
+                <h4 class="font-medium mb-1">Last-Write-Wins Value</h4>
+                <input type="text" id="lww-value" 
+                       value={Map.get(@crdt_data, "title", "")}
+                       placeholder="Enter a value..."
+                       class="w-full p-2 border rounded mb-2" 
+                       phx-keyup="lww_typing" />
+                <button class="px-4 py-2 bg-blue-500 text-white rounded"
+                        phx-click="update_lww_value">
+                  Update
+                </button>
+              </div>
+                
+              <% _ -> %>
+                <div class="text-gray-500">
+                  Unsupported CRDT type: <%= @crdt_data.type %>
+                </div>
+            <% end %>
+          </div>
+        </div>
+      <% else %>
+        <!-- Chat messages -->
+        <div class="flex-1 p-4 overflow-y-auto" id="messages-container" phx-update="append" phx-hook="ScrollToBottom">
+          <%= if Enum.empty?(@messages) do %>
+            <div class="flex items-center justify-center h-full">
+              <p class="text-gray-400 italic">No messages yet. Start the conversation!</p>
+            </div>
+          <% else %>
+            <%= for message <- @messages do %>
+              <div id={"message-#{message.id}"} class={"mb-4 flex #{if message.user_id == @user_id, do: "justify-end", else: "justify-start"}"}>
+                <div class={"max-w-xs lg:max-w-md rounded-lg p-3 #{if message.user_id == @user_id, do: "bg-blue-100", else: "bg-gray-100"}"}>
+                  <%= if message.user_id != @user_id do %>
+                    <div class="font-semibold text-sm">
+                      <%= message.user.display_name || message.user.username %>
+                    </div>
+                  <% end %>
+                  
+                  <%= case message.message_type do %>
+                    <% "text" -> %>
+                      <div class="whitespace-pre-wrap break-words"><%= message.content %></div>
+                      
+                    <% "file" -> %>
+                      <div>
+                        <div class="mb-1"><%= message.content %></div>
+                        <%= case message.file_type do %>
+                          <% type when type in ["image/jpeg", "image/png", "image/gif"] -> %>
+                            <img src={message.file_path} alt={message.file_name} class="max-w-full rounded" />
+                            
+                          <% "application/pdf" -> %>
+                            <div class="bg-gray-200 rounded p-2 flex items-center">
+                              <svg class="w-6 h-6 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 18h12V6h-4V2H4v16zm8-11v-.01h4L12 3v4z" />
+                              </svg>
+                              <a href={message.file_path} target="_blank" class="text-blue-600 hover:underline">
+                                <%= message.file_name %> (<%= format_size(message.file_size) %>)
+                              </a>
+                            </div>
+                            
+                          <% _ -> %>
+                            <div class="bg-gray-200 rounded p-2 flex items-center">
+                              <svg class="w-6 h-6 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 18h12V6h-4V2H4v16zm8-11v-.01h4L12 3v4z" />
+                              </svg>
+                              <a href={message.file_path} target="_blank" class="text-blue-600 hover:underline">
+                                <%= message.file_name %> (<%= format_size(message.file_size) %>)
+                              </a>
+                            </div>
+                        <% end %>
+                      </div>
+                      
+                    <% _ -> %>
+                      <div><%= message.content %></div>
+                  <% end %>
+                  
+                  <div class="text-xs text-right text-gray-500 mt-1">
+                    <%= format_timestamp(message.inserted_at) %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+        
+        <!-- Typing indicator -->
+        <%= if !Enum.empty?(@typing_users) do %>
+          <div class="px-4 py-1 text-sm text-gray-500">
+            <%= for user_id <- Enum.take(@typing_users, 3) do %>
+              <% user_name = user_name(user_id, @room_users) %>
+              <%= if user_id != @user_id do %>
+                <span><%= user_name %> is typing...</span>
+              <% end %>
+            <% end %>
+          </div>
+        <% end %>
+      <% end %>
+      
+      <!-- Message input -->
+      <div class="p-4 bg-white border-t">
+        <form phx-submit="send_message" class="flex items-end">
+          <div class="relative flex-1 mr-2">
+            <textarea
+              name="message"
+              placeholder="Type your message..."
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows="2"
+              phx-keyup="typing"
+              phx-key="Enter"
+              phx-keydown="submit_on_enter"
+              value={@new_message}></textarea>
+              
+            <!-- Emoji picker toggle -->
+            <button type="button" 
+                    class="absolute bottom-2 right-2 text-gray-400 hover:text-gray-600"
+                    phx-click="toggle_emoji_picker">
+              😀
+            </button>
+            
+            <!-- Emoji picker -->
+            <%= if @show_emoji_picker do %>
+              <div class="absolute bottom-full right-0 mb-2 bg-white border rounded shadow-lg p-2 grid grid-cols-8 gap-1">
+                <%= for emoji <- ["😀", "😂", "😊", "😍", "🤔", "😎", "👍", "❤️", "🔥", "✅", "⚠️", "🚨", "🚑", "🏥", "🧡", "💉", "🌍", "🌊", "🌪️", "🏠", "🔋", "📡", "📱", "🔦", "⚡", "🔌", "🔨", "🧰", "🛠️", "🔧", "🔩", "⛏️", "🪓", "🧲", "🧪", "🧫", "🧬", "🔬", "🔭", "📔", "📖", "🔖", "📝", "🧾", "📄", "📃", "📑", "📊", "📈", "📉", "📋", "📌", "📍", "📎", "🔗", "📓", "📕", "📗", "📘", "📙", "📚", "🗂️"] do %>
+                  <button type="button" 
+                          class="w-8 h-8 text-lg hover:bg-gray-100 rounded"
+                          phx-click="select_emoji"
+                          phx-value-emoji={emoji}>
+                    <%= emoji %>
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+          
+          <!-- File upload button -->
+          <label class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md mr-2 cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            <input type="file" class="hidden" phx-hook="FileUpload" />
+          </label>
+          
+          <button 
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            Send
+          </button>
+        </form>
+        
+        <!-- Upload progress indicator -->
+        <%= if @uploading do %>
+          <div class="mt-2">
+            <div class="relative pt-1">
+              <div class="flex mb-2 items-center justify-between">
+                <div>
+                  <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                    Uploading
+                  </span>
+                </div>
+                <div class="text-right">
+                  <span class="text-xs font-semibold inline-block text-blue-600">
+                    <%= @upload_progress %>%
+                  </span>
+                </div>
+              </div>
+              <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+                <div style={"width: #{@upload_progress}%"} class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-300"></div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <!-- No room selected -->
+      <div class="flex-1 flex items-center justify-center bg-gray-50">
+        <div class="text-center">
+          <h2 class="text-xl font-semibold mb-2">Welcome to Pendant Chat</h2>
+          <p class="text-gray-600 mb-4">Select a room to start chatting, or create a new one.</p>
+          <div class="flex space-x-4 justify-center">
+            <button class="px-4 py-2 bg-blue-600 text-white rounded"
+                    phx-click="show-modal" phx-value-modal="create-room">
+              Create Room
+            </button>
+            <button class="px-4 py-2 bg-purple-600 text-white rounded"
+                    phx-click="show-modal" phx-value-modal="create-crdt-room">
+              Create CRDT Room
+            </button>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+  
+  <!-- User List Sidebar -->
+  <div class="w-48 flex-shrink-0 bg-gray-100 border-l p-4 hidden md:block">
+    <h3 class="font-medium mb-2">Room Users</h3>
+    <div class="overflow-y-auto max-h-96">
+      <%= if @current_room do %>
+        <%= if Enum.empty?(@room_users) do %>
+          <p class="text-sm text-gray-400 italic">No users</p>
+        <% else %>
+          <ul class="space-y-1">
+            <%= for user_data <- @room_users do %>
+              <li class="flex items-center">
+                <span class={"w-2 h-2 rounded-full mr-2 #{if is_user_online?(user_data.user.id, @online_users), do: "bg-green-500", else: "bg-gray-400"}"}></span>
+                <span class={"text-sm #{if user_data.user.id == @user_id, do: "font-semibold"}"}>
+                  <%= user_data.user.display_name || user_data.user.username %>
+                </span>
+                <span class="ml-1 text-xs text-gray-500">
+                  <%= case user_data.role do %>
+                    <% "owner" -> %> (👑)
+                    <% "admin" -> %> (🛡️)
+                    <% _ -> %> 
+                  <% end %>
+                </span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      <% else %>
+        <p class="text-sm text-gray-400 italic">Select a room to see users</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Create Room Modal -->
+<div id="create-room-modal" class="hidden fixed z-10 inset-0 overflow-y-auto" phx-hook="Modal">
+  <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+    <!-- Background overlay -->
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+    
+    <!-- Modal content -->
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <h3 class="text-lg font-medium mb-4">Create New Room</h3>
+        <form phx-submit="create_room">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
+            <input type="text" name="name" required
+                   class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
+            <select name="type" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+          <div class="flex justify-end">
+            <button type="button" class="mr-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-md close-modal">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">
+              Create Room
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create CRDT Room Modal -->
+<div id="create-crdt-room-modal" class="hidden fixed z-10 inset-0 overflow-y-auto" phx-hook="Modal">
+  <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center">
+    <!-- Background overlay -->
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+    
+    <!-- Modal content -->
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <h3 class="text-lg font-medium mb-4">Create Collaborative Room</h3>
+        <form phx-submit="create_crdt_room">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
+            <input type="text" name="name" required
+                   class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">CRDT Type</label>
+            <select name="crdt_type" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="text">Text Editor (WOOT)</option>
+              <option value="counter">Counter (PN-Counter)</option>
+              <option value="set">Set (OR-Set)</option>
+              <option value="lww">Last-Write-Wins Register</option>
+            </select>
+          </div>
+          <div class="mb-4 bg-gray-50 p-3 rounded">
+            <h4 class="font-medium text-sm mb-1">About CRDT Types</h4>
+            <p class="text-xs text-gray-600">
+              CRDTs are conflict-free replicated data types that enable collaborative editing without conflicts.
+              Text editors allow multiple users to edit the same document, counters track values that can be incremented/decremented,
+              sets store collections of unique items, and LWW registers store single values.
+            </p>
+          </div>
+          <div class="flex justify-end">
+            <button type="button" class="mr-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-md close-modal">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-md">
+              Create CRDT Room
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Client-side hooks and functions for collaborative editing using DeltaCRDT
+  function initCollaborativeEditor() {
+    // Create a channel connection for CRDT synchronization
+    let socket = null;
+    let crdtChannel = null;
+    let roomId = null;
+    
+    // Initialize text editor capabilities
+    const textEditor = document.getElementById("collaborative-text");
+    if (textEditor) {
+      // Handle text changes
+      let timeoutId = null;
+      textEditor.addEventListener("input", () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        // Debounce to prevent excessive updates
+        timeoutId = setTimeout(() => {
+          if (crdtChannel) {
+            crdtChannel.push("update_crdt", {
+              operation: {
+                type: "set",
+                key: "document",
+                value: textEditor.value
+              }
+            });
+          }
+        }, 500);
+      });
+    }
+    
+    // Connect to socket when LiveView connects
+    document.addEventListener("phx:connect", () => {
+      // Get room ID from collaborative editor element if available
+      const collaborativeElement = document.getElementById("collaborative-text");
+      if (collaborativeElement) {
+        roomId = collaborativeElement.dataset.roomId;
+      }
+      
+      if (roomId) {
+        // Connect to socket
+        socket = new PhoenixSocket("/socket", {
+          params: { user_id: Math.floor(Math.random() * 10000) }
+        });
+        socket.connect();
+        
+        // Join CRDT channel
+        crdtChannel = socket.channel(`crdt:${roomId}`, {});
+        
+        crdtChannel.join()
+          .receive("ok", response => {
+            console.log("Joined CRDT channel", response);
+            // Update UI with initial CRDT data
+            updateUIFromCRDT(response.crdt_data);
+          })
+          .receive("error", response => {
+            console.error("Failed to join CRDT channel", response);
+          });
+          
+        // Listen for CRDT updates
+        crdtChannel.on("crdt_updated", data => {
+          console.log("CRDT updated", data);
+          // Apply operation locally
+          crdtChannel.push("get_crdt_data", {})
+            .receive("ok", response => {
+              updateUIFromCRDT(response.crdt_data);
+            });
+        });
+        
+        // Listen for CRDT deltas
+        crdtChannel.on("crdt_delta", data => {
+          console.log("CRDT delta received", data);
+          // Sync delta
+          crdtChannel.push("sync_crdt_delta", { delta: data.delta });
+        });
+      }
+    });
+    
+    // Update UI elements from CRDT data
+    function updateUIFromCRDT(data) {
+      // Update document text if available
+      if (data.document && textEditor) {
+        // Only update if the value is different to avoid cursor jumping
+        if (textEditor.value !== data.document) {
+          textEditor.value = data.document;
+        }
+      }
+      
+      // Update counter display
+      const counterElement = document.querySelector(".counter-value");
+      if (counterElement && data.counter !== undefined) {
+        counterElement.textContent = data.counter;
+      }
+      
+      // Could update other elements as needed
+    }
+  }
+  
+  document.addEventListener('DOMContentLoaded', initCollaborativeEditor);
+</script>

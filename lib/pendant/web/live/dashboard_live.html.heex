@@ -1,0 +1,122 @@
+<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+  <p class="font-bold">Emergency Mode</p>
+  <p>This device is designed for emergency communication when regular networks are unavailable.</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl font-semibold mb-4">System Status</h2>
+    <div class="space-y-2">
+      <div class="flex justify-between">
+        <span class="text-gray-600">Uptime:</span>
+        <span class="font-medium"><%= @system_status.uptime %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Memory Usage:</span>
+        <span class="font-medium"><%= @system_status.memory_usage %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Storage:</span>
+        <span class="font-medium"><%= @system_status.disk_usage.used %> / <%= @system_status.disk_usage.total %> (<%= @system_status.disk_usage.percent %>%)</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Knowledge Base:</span>
+        <span class="font-medium"><%= @system_status.articles_count %> articles</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl font-semibold mb-4">Network Status</h2>
+    <div class="space-y-2">
+      <div class="flex justify-between">
+        <span class="text-gray-600">WiFi AP:</span>
+        <span class={if @wifi_status.ap.active, do: "text-green-600 font-medium", else: "text-red-600 font-medium"}>
+          <%= if @wifi_status.ap.active, do: "Active (#{@wifi_status.ap.ssid})", else: "Inactive" %>
+        </span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Connected Clients:</span>
+        <span class="font-medium"><%= length(@wifi_status.clients) %> devices</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Meshtastic:</span>
+        <span class={if @meshtastic_status.connected, do: "text-green-600 font-medium", else: "text-red-600 font-medium"}>
+          <%= if @meshtastic_status.connected, do: "Connected", else: "Disconnected" %>
+        </span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-600">Meshtastic Peers:</span>
+        <span class="font-medium"><%= length(@meshtastic_status.peers) %> peers</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-8">
+  <h2 class="text-xl font-semibold mb-4">Search Knowledge Base</h2>
+  <form phx-submit="search" class="flex">
+    <input type="text" name="query" placeholder="Search for survival information..." class="flex-1 px-4 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-500">
+    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-r-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+      Search
+    </button>
+  </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl font-semibold mb-4">Essential Information</h2>
+    <%= if Enum.empty?(@important_articles) do %>
+      <p class="text-gray-600">No articles available.</p>
+    <% else %>
+      <ul class="space-y-3">
+        <%= for article <- @important_articles do %>
+          <li>
+            <a href={"/articles/#{article.id}"} class="block p-3 hover:bg-red-50 rounded transition">
+              <div class="font-medium text-red-800"><%= article.title %></div>
+              <div class="text-sm text-gray-600"><%= article.category %></div>
+              <%= if article.summary do %>
+                <div class="mt-1 text-sm text-gray-700"><%= String.slice(article.summary, 0, 100) %><%= if String.length(article.summary) > 100, do: "...", else: "" %></div>
+              <% end %>
+            </a>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+  
+  <div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl font-semibold mb-4">Knowledge Categories</h2>
+    <%= if Enum.empty?(@categories) do %>
+      <p class="text-gray-600">No categories available.</p>
+    <% else %>
+      <div class="grid grid-cols-2 gap-3">
+        <%= for category <- @categories do %>
+          <a href={"/categories/#{category.id}"} class="p-3 border rounded hover:bg-red-50 transition flex items-center">
+            <%= if category.icon do %>
+              <div class="mr-2 text-red-600">
+                <i class={"fas fa-#{category.icon}"}></i>
+              </div>
+            <% end %>
+            <span><%= category.name %></span>
+          </a>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-md">
+  <h2 class="text-xl font-semibold mb-4">Emergency Actions</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    <a href="/meshtastic" class="block p-4 bg-red-600 text-white rounded-md hover:bg-red-700 text-center">
+      Send Meshtastic Message
+    </a>
+    <a href="/network" class="block p-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-center">
+      Network Settings
+    </a>
+    <a href="/system" class="block p-4 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-center">
+      System Control
+    </a>
+  </div>
+</div>

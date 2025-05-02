@@ -1,0 +1,11 @@
+{application,nerves_uevent,
+             [{config_mtime,1746179091},
+              {optional_applications,[]},
+              {applications,[kernel,stdlib,elixir,logger,property_table]},
+              {description,"Simple UEvent monitor for detecting hardware and automatically loading drivers"},
+              {modules,['Elixir.NervesUEvent',
+                        'Elixir.NervesUEvent.Application',
+                        'Elixir.NervesUEvent.UEvent']},
+              {registered,[]},
+              {vsn,"0.1.1"},
+              {mod,{'Elixir.NervesUEvent.Application',[]}}]}.
