@@ -15,6 +15,7 @@ defmodule Pendant.Application do
         {Pendant.Web.Endpoint, []},
         {Pendant.NetworkManager, []},
         {Pendant.Chat.CRDTSupervisor, []},
+        {Pendant.RateLimiter, []},
       ] ++ target_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

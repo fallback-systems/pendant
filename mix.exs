@@ -55,6 +55,9 @@ defmodule Pendant.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       
+      # Test dependencies
+      {:mox, "~> 1.0", only: :test},
+      
       # Meshtastic communication
       {:circuits_uart, "~> 1.5", targets: @all_targets},
       {:circuits_gpio, "~> 1.1", targets: @all_targets},

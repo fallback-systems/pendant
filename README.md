@@ -1,5 +1,9 @@
 # Pendant - Emergency Communication Device
 
+DO NOT USE THIS YET... WORK IN PROGRESS!
+
+# About
+
 Pendant is an Elixir/Nerves-based emergency communication device designed for scenarios where traditional communication infrastructure (cell towers, internet) is unavailable. It leverages Meshtastic for long-range device-to-device communication and provides a local knowledge base accessible via WiFi.
 
 ## Features

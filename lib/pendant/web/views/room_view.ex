@@ -1,6 +1,18 @@
 defmodule Pendant.Web.RoomView do
   use Phoenix.View, root: "lib/pendant/web/templates"
   
+  def render("index.json", %{rooms: rooms}) do
+    %{
+      data: Enum.map(rooms, fn room -> render("room.json", %{room: room}) end)
+    }
+  end
+  
+  def render("show.json", %{room: room}) do
+    %{
+      data: render("room.json", %{room: room})
+    }
+  end
+  
   def render("room.json", %{room: room}) do
     %{
       id: room.id,

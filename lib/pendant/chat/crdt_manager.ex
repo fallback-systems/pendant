@@ -222,53 +222,113 @@ defmodule Pendant.Chat.CRDTManager do
   end
   
   defp apply_operation(crdt, %{type: "add", key: key, value: value}) do
-    # Add to set
-    DeltaCrdt.mutate(crdt, :add, [key, value])
-    {:ok, value}
+    try do
+      # Add to set
+      :ok = DeltaCrdt.mutate(crdt, :add, [key, value])
+      {:ok, value}
+    rescue
+      e ->
+        Logger.error("CRDT add operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT add operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(crdt, %{type: "remove", key: key, value: value}) do
-    # Remove from set
-    DeltaCrdt.mutate(crdt, :remove, [key, value])
-    {:ok, value}
+    try do
+      # Remove from set
+      :ok = DeltaCrdt.mutate(crdt, :remove, [key, value])
+      {:ok, value}
+    rescue
+      e ->
+        Logger.error("CRDT remove operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT remove operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(crdt, %{type: "set", key: key, value: value}) do
-    # Set a value in a LWW register
-    DeltaCrdt.mutate(crdt, :add, [key, value])
-    {:ok, value}
+    try do
+      # Set a value in a LWW register
+      :ok = DeltaCrdt.mutate(crdt, :add, [key, value])
+      {:ok, value}
+    rescue
+      e ->
+        Logger.error("CRDT set operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT set operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(crdt, %{type: "increment", key: key}) do
-    # Get current counter value
-    current_value = get_counter_value(crdt, key)
-    new_value = current_value + 1
-    
-    # Update the counter
-    DeltaCrdt.mutate(crdt, :add, [key, new_value])
-    {:ok, new_value}
+    try do
+      # Get current counter value
+      current_value = get_counter_value(crdt, key)
+      new_value = current_value + 1
+      
+      # Update the counter
+      :ok = DeltaCrdt.mutate(crdt, :add, [key, new_value])
+      {:ok, new_value}
+    rescue
+      e ->
+        Logger.error("CRDT increment operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT increment operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(crdt, %{type: "decrement", key: key}) do
-    # Get current counter value
-    current_value = get_counter_value(crdt, key)
-    new_value = current_value - 1
-    
-    # Update the counter
-    DeltaCrdt.mutate(crdt, :add, [key, new_value])
-    {:ok, new_value}
+    try do
+      # Get current counter value
+      current_value = get_counter_value(crdt, key)
+      new_value = current_value - 1
+      
+      # Update the counter
+      :ok = DeltaCrdt.mutate(crdt, :add, [key, new_value])
+      {:ok, new_value}
+    rescue
+      e ->
+        Logger.error("CRDT decrement operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT decrement operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(crdt, %{type: "update", key: key, nested_key: nested_key, value: value}) do
-    # Get current map
-    map_data = get_map_value(crdt, key)
-    
-    # Update the nested value
-    updated_map = Map.put(map_data, nested_key, value)
-    
-    # Store updated map
-    DeltaCrdt.mutate(crdt, :add, [key, updated_map])
-    {:ok, updated_map}
+    try do
+      # Get current map
+      map_data = get_map_value(crdt, key)
+      
+      # Update the nested value
+      updated_map = Map.put(map_data, nested_key, value)
+      
+      # Store updated map
+      :ok = DeltaCrdt.mutate(crdt, :add, [key, updated_map])
+      {:ok, updated_map}
+    rescue
+      e ->
+        Logger.error("CRDT update operation failed: #{inspect(e)}")
+        {:error, :operation_failed}
+    catch
+      kind, reason ->
+        Logger.error("CRDT update operation failed with #{kind}: #{inspect(reason)}")
+        {:error, :operation_failed}
+    end
   end
   
   defp apply_operation(_crdt, operation) do
